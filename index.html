@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XO Neon 3D</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 20%, #1a0033, #000010 70%);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #fff;
+    overflow-x: hidden;
+    perspective: 1200px;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    letter-spacing: 4px;
+    margin: 20px 0 10px;
+    color: #fff;
+    text-shadow:
+      0 0 10px #0ff,
+      0 0 20px #0ff,
+      0 0 40px #f0f,
+      0 0 80px #f0f;
+  }
+
+  #status {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    min-height: 30px;
+    text-shadow: 0 0 10px currentColor;
+    transition: color 0.3s;
+  }
+
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 12px;
+    transform: rotateX(15deg);
+    transform-style: preserve-3d;
+    margin-bottom: 25px;
+  }
+
+  .cell {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(145deg, #10002080, #05000580);
+    border: 2px solid #0ff5;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow:
+      0 0 15px #0ff3,
+      inset 0 0 10px #0ff2,
+      0 10px 20px rgba(0,0,0,0.6);
+    transform-style: preserve-3d;
+    transition: transform 0.15s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    user-select: none;
+  }
+
+  .cell:hover {
+    transform: translateZ(10px) scale(1.05);
+    border-color: #0ff;
+    box-shadow:
+      0 0 25px #0ffb,
+      inset 0 0 15px #0ff5,
+      0 15px 25px rgba(0,0,0,0.7);
+  }
+
+  .cell.taken {
+    cursor: default;
+  }
+
+  .cell.taken:hover {
+    transform: none;
+  }
+
+  .cell.x {
+    color: #ff3355;
+    text-shadow:
+      0 0 10px #ff3355,
+      0 0 20px #ff3355,
+      0 0 40px #ff0033;
+  }
+
+  .cell.o {
+    color: #33aaff;
+    text-shadow:
+      0 0 10px #33aaff,
+      0 0 20px #33aaff,
+      0 0 40px #0088ff;
+  }
+
+  .cell.win {
+    animation: pulse 0.8s infinite alternate;
+  }
+
+  @keyframes pulse {
+    from { box-shadow: 0 0 15px currentColor, inset 0 0 10px currentColor; }
+    to   { box-shadow: 0 0 35px currentColor, inset 0 0 25px currentColor; }
+  }
+
+  #reset {
+    padding: 12px 30px;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    background: transparent;
+    border: 2px solid #f0f;
+    color: #f0f;
+    border-radius: 30px;
+    cursor: pointer;
+    text-shadow: 0 0 8px #f0f;
+    box-shadow: 0 0 15px #f0f6, inset 0 0 10px #f0f3;
+    transition: all 0.25s ease;
+    margin-bottom: 30px;
+  }
+
+  #reset:hover {
+    background: #f0f2;
+    transform: scale(1.05);
+    box-shadow: 0 0 30px #f0fb, inset 0 0 15px #f0f5;
+  }
+
+  footer {
+    margin-top: 10px;
+    font-size: 0.95rem;
+    color: #aaa;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px #0ff8;
+  }
+
+  footer span {
+    color: #0ff;
+    font-weight: bold;
+    text-shadow: 0 0 10px #0ff;
+  }
+</style>
+</head>
+<body>
+
+  <h1>XO NEON</h1>
+  <div id="status">دور اللاعب: <span style="color:#ff3355;">X</span></div>
+
+  <div id="board"></div>
+
+  <button id="reset">إعادة اللعب</button>
+
+  <footer>Made by: <span>AHMED ALI AL-ISSAWI</span></footer>
+
+<script>
+  const board = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const resetBtn = document.getElementById('reset');
+
+  let cells = Array(9).fill(null);
+  let currentPlayer = 'X';
+  let gameActive = true;
+
+  const winPatterns = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  function createBoard() {
+    board.innerHTML = '';
+    cells.forEach((val, i) => {
+      const cell = document.createElement('div');
+      cell.classList.add('cell');
+      cell.dataset.index = i;
+      cell.addEventListener('click', handleClick);
+      board.appendChild(cell);
+    });
+  }
+
+  function updateStatus() {
+    const color = currentPlayer === 'X' ? '#ff3355' : '#33aaff';
+    statusEl.innerHTML = `دور اللاعب: <span style="color:${color};">${currentPlayer}</span>`;
+  }
+
+  function handleClick(e) {
+    const index = e.target.dataset.index;
+    if (!gameActive || cells[index]) return;
+
+    cells[index] = currentPlayer;
+    const cellEl = board.children[index];
+    cellEl.textContent = currentPlayer;
+    cellEl.classList.add('taken', currentPlayer.toLowerCase());
+
+    const winInfo = checkWin();
+    if (winInfo) {
+      gameActive = false;
+      winInfo.pattern.forEach(i => board.children[i].classList.add('win'));
+      const color = winInfo.winner === 'X' ? '#ff3355' : '#33aaff';
+      statusEl.innerHTML = `<span style="color:${color};">${winInfo.winner}</span> فاز! 🎉`;
+      return;
+    }
+
+    if (cells.every(c => c !== null)) {
+      gameActive = false;
+      statusEl.textContent = 'تعادل! 🤝';
+      return;
+    }
+
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    updateStatus();
+  }
+
+  function checkWin() {
+    for (const pattern of winPatterns) {
+      const [a,b,c] = pattern;
+      if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
+        return { winner: cells[a], pattern };
+      }
+    }
+    return null;
+  }
+
+  function resetGame() {
+    cells = Array(9).fill(null);
+    currentPlayer = 'X';
+    gameActive = true;
+    createBoard();
+    updateStatus();
+  }
+
+  resetBtn.addEventListener('click', resetGame);
+
+  createBoard();
+  updateStatus();
+</script>
+
+</body>
+</html>
